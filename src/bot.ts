@@ -1,22 +1,30 @@
-const fs = require('node:fs')
-const path = require('node:path')
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+import fs from 'node:fs'
+import path from 'node:path'
+import { Command } from './command.js'
+import { Client, ClientOptions, Collection, Events, GatewayIntentBits } from 'discord.js';
+
+// extending to add commands collection
+class MyClient extends Client {
+    commands: Collection<string, Command>
+
+    constructor(options: ClientOptions) {
+        super(options)
+        this.commands = new Collection()
+    }
+}
 
 require('dotenv').config();
 
 // create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-// client.commands = new Collection();
+const client: MyClient = new MyClient({ intents: [GatewayIntentBits.Guilds] });
 
-// get the commands
-const commandsPath = path.join(__dirname, 'commands')
-const commandFiles = fs.readdirSync(commandsPath).filter((file: string) => file.endsWith('.js'))
+// get the commands and add to collection
+const commandsPath: string = path.join(__dirname, 'commands')
+const commandFiles: string[] = fs.readdirSync(commandsPath).filter((file: string) => file.endsWith('.js'))
 for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file)
-    const command = require(filePath)
-    if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command)
-    }
+    const filePath: string = path.join(commandsPath, file)
+    const command: Command = require(filePath)
+    client.commands.set(command.data.name, command)
 }
 
 // When the client is ready, run this code (only once)

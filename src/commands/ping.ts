@@ -1,4 +1,5 @@
-const { SlashCommandBuilder } = require("discord.js");
+import { Command } from '../command.js'
+import { SlashCommandBuilder } from "discord.js";
 
 
 const PingCommand = new SlashCommandBuilder()
@@ -9,4 +10,7 @@ const PingCommandExecutor = async (interaction: any) => {
     await interaction.reply('Pong!')
 }
 
-export { PingCommand, PingCommandExecutor }
+export default {
+    data: PingCommand,
+    run: PingCommandExecutor
+}
