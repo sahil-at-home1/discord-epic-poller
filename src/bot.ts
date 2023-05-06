@@ -1,11 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { Command } from './command.js'
-import { Client, ClientOptions, Collection, Events, GatewayIntentBits } from 'discord.js';
+import { Client, Interaction, ClientOptions, Collection, Events, GatewayIntentBits } from 'discord.js';
 
 // extending to add commands collection
 class MyClient extends Client {
-    commands: Collection<string, Command>
+    commands: Collection<string, any>
 
     constructor(options: ClientOptions) {
         super(options)
@@ -23,9 +22,20 @@ const commandsPath: string = path.join(__dirname, 'commands')
 const commandFiles: string[] = fs.readdirSync(commandsPath).filter((file: string) => file.endsWith('.js'))
 for (const file of commandFiles) {
     const filePath: string = path.join(commandsPath, file)
-    const command: Command = require(filePath)
-    client.commands.set(command.data.name, command)
+    const command = require(filePath)
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command)
+    } else {
+        console.log('bad command file path')
+    }
 }
+
+client.on(Events.InteractionCreate, (interaction: Interaction) => {
+    if (!interaction.isChatInputCommand()) {
+        return
+    }
+    console.log(interaction)
+})
 
 // When the client is ready, run this code (only once)
 // We use 'c' for the event parameter to keep it separate from the already defined 'client'
