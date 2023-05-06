@@ -1,6 +1,5 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { Client, Interaction, ClientOptions, Collection, Events, GatewayIntentBits } from 'discord.js';
+import { Ping } from './commands/ping.js'
 
 // extending to add commands collection
 class MyClient extends Client {
@@ -18,23 +17,37 @@ require('dotenv').config();
 const client: MyClient = new MyClient({ intents: [GatewayIntentBits.Guilds] });
 
 // get the commands and add to collection
-const commandsPath: string = path.join(__dirname, 'commands')
-const commandFiles: string[] = fs.readdirSync(commandsPath).filter((file: string) => file.endsWith('.js'))
-for (const file of commandFiles) {
-    const filePath: string = path.join(commandsPath, file)
-    const command = require(filePath)
-    if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command)
-    } else {
-        console.log('bad command file path')
-    }
-}
+client.commands.set(Ping.data.name, Ping)
 
-client.on(Events.InteractionCreate, (interaction: Interaction) => {
+client.on(Events.InteractionCreate, async (interaction: Interaction) => {
     if (!interaction.isChatInputCommand()) {
         return
     }
-    console.log(interaction)
+
+    // get the command
+    const command = (interaction.client as MyClient).commands.get(interaction.commandName)
+    if (!command) {
+        console.error(`No command matching ${interaction.commandName} was found`)
+        return
+    }
+
+    // try to execute the command
+    try {
+        await command.execute(interaction)
+    } catch (error) {
+        console.error(error)
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({
+                content: 'There was an error while executing this command!',
+                ephemeral: true
+            })
+        } else {
+            await interaction.reply({
+                content: 'There was an error while executing this command!',
+                ephemeral: true
+            })
+        }
+    }
 })
 
 // When the client is ready, run this code (only once)
