@@ -1,8 +1,8 @@
 import { Events, Interaction } from 'discord.js'
 import MyClient from '../myClient.js'
 
-export const InteractionCreateEvent = {
-    name: Events.InteractionCreate,
+export const onInteractionCreate = {
+    name: Events.InteractionCreate as string,
     execute: async (interaction: Interaction) => {
         if (!interaction.isChatInputCommand()) {
             return

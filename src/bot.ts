@@ -1,7 +1,7 @@
 import { GatewayIntentBits } from 'discord.js';
 import MyClient from './myClient.js'
-import { ClientReadyEvent } from './events/ready.js'
-import { InteractionCreateEvent } from './events/interactionCreate.js'
+import { onReady } from './events/ready.js'
+import { onInteractionCreate } from './events/interactionCreate.js'
 import { Ping } from './commands/ping.js'
 
 require('dotenv').config();
@@ -13,8 +13,14 @@ const client: MyClient = new MyClient({ intents: [GatewayIntentBits.Guilds] });
 client.commands.set(Ping.data.name, Ping)
 
 // get the event handlers and add to client
-client.once(ClientReadyEvent.name, (...args) => ClientReadyEvent.execute(...args))
-client.on(InteractionCreateEvent.name, (...args) => InteractionCreateEvent.execute(...args))
+client.once(
+    onReady.name,
+    async () => await onReady.execute(client)
+)
+client.on(
+    onInteractionCreate.name,
+    async (interaction) => await onInteractionCreate.execute(interaction)
+)
 
 // Log in to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN);
