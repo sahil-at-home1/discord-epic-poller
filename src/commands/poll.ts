@@ -1,6 +1,5 @@
-import { ModalBuilder, ActionRowBuilder, Message, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle, ButtonInteraction, TextInputStyle, ModalSubmitInteraction } from "discord.js"
+import { ModalBuilder, ActionRowBuilder, Message, bold, italic, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle, ButtonInteraction, TextInputStyle, ModalSubmitInteraction } from "discord.js"
 import { PollItemList } from '../pollItemList.js'
-import { create } from "domain"
 
 const MODAL_TIMEOUT: number = 5 * 60 * 1000 // 5 minutes in ms
 
@@ -220,7 +219,14 @@ export const Poll = {
                 // send out actual poll
                 const pollResponse = await sendPollMessage(interaction, pollItems)
                 // handle the interactions to the poll
-                const pollUpdateResponse = await sendPollUpdateMessage(pollResponse, pollItems)
+                await sendPollUpdateMessage(pollResponse, pollItems)
+                setTimeout(() => {
+                    pollResponse.edit({
+                        content: italic(`${MODAL_TIMEOUT / 1000} seconds have passed. Voting is closed.`),
+                        components: [],
+                    })
+                }, MODAL_TIMEOUT)
+
             } else {
                 console.error('invalid button id')
                 return
