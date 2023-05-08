@@ -97,6 +97,8 @@ export class PollItemList {
     }
 
     toString(): string {
-        return Array.from(this.items.keys()).join('\r\n')
+        return Array.from(this.items.values())
+            .map((item) => `- ${item.title}`)
+            .join('\r\n')
     }
 }

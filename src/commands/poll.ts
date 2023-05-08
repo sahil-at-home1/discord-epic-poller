@@ -1,5 +1,6 @@
 import { ModalBuilder, ActionRowBuilder, Message, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle, ButtonInteraction, TextInputStyle, ModalSubmitInteraction } from "discord.js"
 import { PollItemList } from '../pollItemList.js'
+import { create } from "domain"
 
 const sendPollCreationMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<InteractionResponse> => {
     const addItem = new ButtonBuilder()
@@ -76,6 +77,35 @@ const sendPollUpdateMessage = async (pollResponse: Message, pollItems: PollItemL
     })
 }
 
+const handleAddItem = async (interaction: ButtonInteraction, pollItems: PollItemList) => {
+    const modal = new ModalBuilder()
+        .setCustomId("itemNameModal")
+        .setTitle('Add Poll Item')
+        .addComponents(new ActionRowBuilder<TextInputBuilder>()
+            .addComponents(new TextInputBuilder()
+                .setCustomId('itemNameInput')
+                .setLabel('What should the item be called?')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(100)
+                .setValue('Default')
+                .setRequired(true)
+            )
+        )
+    await interaction.showModal(modal)
+    const filter = (m: ModalSubmitInteraction) =>
+        m.user.id === interaction.user.id && m.customId === 'itemNameModal'
+    const modalResponse = await interaction.awaitModalSubmit({
+        filter: filter,
+        time: 15_000
+    })
+    const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
+    pollItems.add(itemName)
+    await modalResponse.deferUpdate()
+    await modalResponse.editReply({
+        content: `${pollItems.title}\r\n${pollItems.toString()}`,
+    })
+}
+
 export const Poll = {
     cooldown: 5,
     data: new SlashCommandBuilder()
@@ -95,53 +125,23 @@ export const Poll = {
         // listen for interactions with the buttons to modify the poll item list
         const collector = createResponse.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time: 15000
         })
         collector.on('collect', async (i: ButtonInteraction) => {
             if (i.customId === 'add') {
-                console.log('add button pressed')
-                const modal = new ModalBuilder()
-                    .setCustomId("itemNameModal")
-                    .setTitle('Add Poll Item')
-                    .addComponents(new ActionRowBuilder<TextInputBuilder>()
-                        .addComponents(new TextInputBuilder()
-                            .setCustomId('itemNameInput')
-                            .setLabel('What should the item be called?')
-                            .setStyle(TextInputStyle.Short)
-                            .setMaxLength(100)
-                            .setValue('Default')
-                            .setRequired(true)
-                        )
-                    )
-                await i.showModal(modal)
-                const modalResponse = await i.awaitModalSubmit({
-                    filter: m => m.user.id === i.user.id && m.customId === 'itemNameModal',
-                    time: 15_000
-                })
-                console.log('add modal submit')
-                const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
-                pollItems.add(itemName)
-                await modalResponse.deferUpdate()
-
-                await modalResponse.editReply({
-                    content: `${pollItems.title}\r\n${pollItems.toString()}`,
-                })
+                handleAddItem(i, pollItems)
             } else if (i.customId === 'remove') {
             } else if (i.customId === 'cancel') {
+                createResponse.delete()
             } else if (i.customId === 'create') {
+                createResponse.delete()
+                // send out actual poll
+                const pollResponse = await sendPollMessage(interaction, pollItems)
+                // handle the interactions to the poll
+                const pollUpdateResponse = await sendPollUpdateMessage(pollResponse, pollItems)
             } else {
                 console.error('invalid button id')
             }
         })
 
-        // TODO: this is a static list, need another message to have the first user
-        // create the poll with a configuration message
-        pollItems.add('Option 1')
-        pollItems.add('Option 2')
-        pollItems.add('Option 3')
-        // send out actual poll
-        const pollResponse = await sendPollMessage(interaction, pollItems)
-        // handle the interactions to the poll
-        const pollUpdateResponse = await sendPollUpdateMessage(pollResponse, pollItems)
     }
 }
