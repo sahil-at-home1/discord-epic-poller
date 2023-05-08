@@ -2,7 +2,13 @@ import { ModalBuilder, ActionRowBuilder, Message, bold, User, CommandInteraction
 import { PollItemList } from '../pollItemList.js'
 import { create } from "domain"
 
+const MODAL_TIMEOUT: number = 5 * 60 * 1000 // 5 minutes in ms
+
 const sendPollCreationMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<InteractionResponse> => {
+    const setTitle = new ButtonBuilder()
+        .setCustomId('setTitle')
+        .setLabel('Set Poll Title')
+        .setStyle(ButtonStyle.Primary)
     const addItem = new ButtonBuilder()
         .setCustomId('add')
         .setLabel('Add Poll Item')
@@ -19,6 +25,8 @@ const sendPollCreationMessage = async (interaction: CommandInteraction, pollItem
         .setCustomId('cancel')
         .setLabel('Cancel')
         .setStyle(ButtonStyle.Secondary)
+    const titleRow = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(setTitle)
     const itemModifyRow = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(addItem, removeItem)
     const pollModifyRow = new ActionRowBuilder<ButtonBuilder>()
@@ -26,7 +34,7 @@ const sendPollCreationMessage = async (interaction: CommandInteraction, pollItem
     return interaction.reply({
         ephemeral: true,
         content: `Create a new poll`,
-        components: [itemModifyRow, pollModifyRow]
+        components: [titleRow, itemModifyRow, pollModifyRow]
     })
 }
 
@@ -87,7 +95,7 @@ const handleAddItem = async (interaction: ButtonInteraction, pollItems: PollItem
                 .setLabel('What should the item be called?')
                 .setStyle(TextInputStyle.Short)
                 .setMaxLength(100)
-                .setValue('Default')
+                .setValue('')
                 .setRequired(true)
             )
         )
@@ -96,10 +104,39 @@ const handleAddItem = async (interaction: ButtonInteraction, pollItems: PollItem
         m.user.id === interaction.user.id && m.customId === 'itemNameModal'
     const modalResponse = await interaction.awaitModalSubmit({
         filter: filter,
-        time: 15_000
+        time: MODAL_TIMEOUT
     })
     const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
     pollItems.add(itemName)
+    await modalResponse.deferUpdate()
+    await modalResponse.editReply({
+        content: `${pollItems.title}\r\n${pollItems.toString()}`,
+    })
+}
+
+const handleSetTitle = async (interaction: ButtonInteraction, pollItems: PollItemList) => {
+    const modal = new ModalBuilder()
+        .setCustomId('setTitleModal')
+        .setTitle('Set Poll Title')
+        .addComponents(new ActionRowBuilder<TextInputBuilder>()
+            .addComponents(new TextInputBuilder()
+                .setCustomId('titleInput')
+                .setLabel('What should the poll be called?')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(100)
+                .setValue('')
+                .setRequired(true)
+            )
+        )
+    await interaction.showModal(modal)
+    const filter = (m: ModalSubmitInteraction) =>
+        m.user.id === interaction.user.id && m.customId === 'setTitleModal'
+    const modalResponse = await interaction.awaitModalSubmit({
+        filter: filter,
+        time: MODAL_TIMEOUT
+    })
+    const pollTitle = modalResponse.fields.getTextInputValue('titleInput')
+    pollItems.title = pollTitle
     await modalResponse.deferUpdate()
     await modalResponse.editReply({
         content: `${pollItems.title}\r\n${pollItems.toString()}`,
@@ -110,13 +147,13 @@ export const Poll = {
     cooldown: 5,
     data: new SlashCommandBuilder()
         .setName('poll')
-        .setDescription('Sets up a new poll')
-        .addStringOption((option) =>
-            option.setName('title')
-                .setDescription('Title of the poll')
-                .setRequired(true)
-                .setMaxLength(100)
-        ),
+        .setDescription('Sets up a new poll'),
+    // .addStringOption((option) =>
+    //     option.setName('title')
+    //         .setDescription('Title of the poll')
+    //         .setRequired(true)
+    //         .setMaxLength(100)
+    // ),
     execute: async (interaction: CommandInteraction) => {
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         // ask user to create poll
@@ -127,7 +164,9 @@ export const Poll = {
             componentType: ComponentType.Button,
         })
         collector.on('collect', async (i: ButtonInteraction) => {
-            if (i.customId === 'add') {
+            if (i.customId === 'setTitle') {
+                handleSetTitle(i, pollItems)
+            } else if (i.customId === 'add') {
                 handleAddItem(i, pollItems)
             } else if (i.customId === 'remove') {
             } else if (i.customId === 'cancel') {
@@ -140,6 +179,7 @@ export const Poll = {
                 const pollUpdateResponse = await sendPollUpdateMessage(pollResponse, pollItems)
             } else {
                 console.error('invalid button id')
+                return
             }
         })
 
