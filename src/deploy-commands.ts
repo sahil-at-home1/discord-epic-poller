@@ -1,11 +1,9 @@
 import { REST, Routes } from 'discord.js'
-import { Ping } from './commands/ping.js'
 import { Poll } from './commands/poll.js'
 
 require('dotenv').config();
 
 const commands = [
-    Ping.data.toJSON(),
     Poll.data.toJSON(),
 ]
 

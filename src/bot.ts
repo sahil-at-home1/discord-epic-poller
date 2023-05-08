@@ -2,7 +2,6 @@ import { Collection, GatewayIntentBits } from 'discord.js'
 import MyClient from './myClient.js'
 import { onReady } from './events/ready.js'
 import { onInteractionCreate } from './events/interactionCreate.js'
-import { Ping } from './commands/ping.js'
 import { Poll } from './commands/poll.js'
 
 require('dotenv').config();
@@ -11,7 +10,6 @@ require('dotenv').config();
 const client: MyClient = new MyClient({ intents: [GatewayIntentBits.Guilds] });
 
 // get the commands and add to collection
-client.commands.set(Ping.data.name, Ping)
 client.commands.set(Poll.data.name, Poll)
 
 // get the event handlers and add to client
