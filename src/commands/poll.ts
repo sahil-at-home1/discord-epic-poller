@@ -121,9 +121,10 @@ export const Poll = {
                 console.log('add modal submit')
                 const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
                 pollItems.add(itemName)
-                await modalResponse.reply({
-                    content: `added ${itemName} to poll items`,
-                    ephemeral: true,
+                await modalResponse.deferUpdate()
+
+                await modalResponse.editReply({
+                    content: `${pollItems.title}\r\n${pollItems.toString()}`,
                 })
             } else if (i.customId === 'remove') {
             } else if (i.customId === 'cancel') {
