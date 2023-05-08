@@ -17,21 +17,31 @@ class PollItem {
 
 class PollItemList {
     items: Map<string, PollItem> = new Map()
-    voters: Map<string, any> = new Map()
+    voters: Map<string, string> = new Map()
 
     vote(itemValue: string, voter: User): void {
-        if (this.voters.get(voter.toString()) != undefined) {
-            console.log(`${voter} has already voted`)
-            return
-        }
-        this.voters.set(voter.toString(), {})
+        // check if item is valid
         const item: PollItem | undefined = this.items.get(itemValue)
         if (item == undefined) {
             console.error(`${itemValue} not a valid pollItem value`)
             return
         }
+        // check if voter already voted and remove their previous vote
+        const voterStr: string = voter.toString()
+        const prevItemValue: string | undefined = this.voters.get(voterStr)
+        if (prevItemValue != undefined) {
+            const prevItem: PollItem | undefined = this.items.get(prevItemValue)
+            if (prevItem == undefined) {
+                console.error(`previous item ${prevItem} was not valid`)
+                return
+            }
+            prevItem.voters = item.voters.filter(v => v !== voterStr)
+            prevItem.votes -= 1
+        }
+        // update state of poll item
+        this.voters.set(voterStr, itemValue)
         item.votes += 1
-        item.voters.push(voter.toString())
+        item.voters.push(voterStr)
     }
 
     add(item: PollItem): void {
