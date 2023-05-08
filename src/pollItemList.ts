@@ -1,4 +1,5 @@
 import { User, APIEmbedField, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js'
+import { Poll } from './commands/poll'
 
 export class PollItem {
     readonly title: string
@@ -19,6 +20,7 @@ export class PollItemList {
     title: string = ''
     items: Map<string, PollItem> = new Map()
     voters: Map<string, string> = new Map()
+    length: number = 0
 
     constructor(title: string) {
         this.title = title
@@ -49,12 +51,23 @@ export class PollItemList {
         item.voters.push(voterStr)
     }
 
-    add(item: PollItem): void {
+    add(name: string): void {
+        const item = new PollItem(name, String(this.length))
         if (this.items.get(item.value) != null) {
             console.log(`${item} already in poll items`)
             return
         }
         this.items.set(item.value, item)
+        this.length += 1
+    }
+
+    delete(value: string): void {
+        if (this.items.get(value) == null) {
+            console.log(`${value} not in poll items`)
+            return
+        }
+        this.items.delete(value)
+        this.length -= 1
     }
 
     toEmbedFields(): APIEmbedField[] {

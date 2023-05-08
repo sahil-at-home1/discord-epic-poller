@@ -1,7 +1,7 @@
-import { ActionRowBuilder, Message, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle } from "discord.js"
-import { PollItemList, PollItem } from '../pollItemList.js'
+import { ModalBuilder, ActionRowBuilder, Message, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle, ButtonInteraction, TextInputStyle, ModalSubmitInteraction } from "discord.js"
+import { PollItemList } from '../pollItemList.js'
 
-const sendPollCreationMessage = async (interaction: CommandInteraction): Promise<InteractionResponse> => {
+const sendPollCreationMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<InteractionResponse> => {
     const addItem = new ButtonBuilder()
         .setCustomId('add')
         .setLabel('Add Poll Item')
@@ -19,9 +19,9 @@ const sendPollCreationMessage = async (interaction: CommandInteraction): Promise
         .setLabel('Cancel')
         .setStyle(ButtonStyle.Secondary)
     const itemModifyRow = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(removeItem, addItem)
+        .addComponents(addItem, removeItem)
     const pollModifyRow = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(cancelPoll, createPoll)
+        .addComponents(createPoll, cancelPoll)
     return interaction.reply({
         ephemeral: true,
         content: `Create a new poll`,
@@ -90,13 +90,54 @@ export const Poll = {
     execute: async (interaction: CommandInteraction) => {
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         // ask user to create poll
-        const createResponse = await sendPollCreationMessage(interaction)
+        const pollItems: PollItemList = new PollItemList(title)
+        const createResponse = await sendPollCreationMessage(interaction, pollItems)
+        // listen for interactions with the buttons to modify the poll item list
+        const collector = createResponse.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 15000
+        })
+        collector.on('collect', async (i: ButtonInteraction) => {
+            if (i.customId === 'add') {
+                console.log('add button pressed')
+                const modal = new ModalBuilder()
+                    .setCustomId("itemNameModal")
+                    .setTitle('Add Poll Item')
+                    .addComponents(new ActionRowBuilder<TextInputBuilder>()
+                        .addComponents(new TextInputBuilder()
+                            .setCustomId('itemNameInput')
+                            .setLabel('What should the item be called?')
+                            .setStyle(TextInputStyle.Short)
+                            .setMaxLength(100)
+                            .setValue('Default')
+                            .setRequired(true)
+                        )
+                    )
+                await i.showModal(modal)
+                const modalResponse = await i.awaitModalSubmit({
+                    filter: m => m.user.id === i.user.id && m.customId === 'itemNameModal',
+                    time: 15_000
+                })
+                console.log('add modal submit')
+                const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
+                pollItems.add(itemName)
+                await modalResponse.reply({
+                    content: `added ${itemName} to poll items`,
+                    ephemeral: true,
+                })
+            } else if (i.customId === 'remove') {
+            } else if (i.customId === 'cancel') {
+            } else if (i.customId === 'create') {
+            } else {
+                console.error('invalid button id')
+            }
+        })
+
         // TODO: this is a static list, need another message to have the first user
         // create the poll with a configuration message
-        const pollItems: PollItemList = new PollItemList(title)
-        pollItems.add(new PollItem('Option 1', '0'))
-        pollItems.add(new PollItem('Option 2', '1'))
-        pollItems.add(new PollItem('Option 3', '2'))
+        pollItems.add('Option 1')
+        pollItems.add('Option 2')
+        pollItems.add('Option 3')
         // send out actual poll
         const pollResponse = await sendPollMessage(interaction, pollItems)
         // handle the interactions to the poll

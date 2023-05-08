@@ -5,6 +5,7 @@ export const onInteractionCreate = {
     name: Events.InteractionCreate as string,
     execute: async (interaction: Interaction) => {
         if (!interaction.isChatInputCommand()) {
+            console.log(interaction.id)
             return
         }
 
