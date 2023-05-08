@@ -1,9 +1,9 @@
-import { ActionRowBuilder, BaseSelectMenuBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuOptionBuilder } from "discord.js"
+import { ActionRowBuilder, BaseSelectMenuBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js"
 
 export const Poll = {
     cooldown: 5,
     data: new SlashCommandBuilder()
-        .setName('Poll')
+        .setName('poll')
         .setDescription('Sets up a new poll')
         .addStringOption((option) =>
             option.setName('title')
@@ -17,7 +17,7 @@ export const Poll = {
         await interaction.deferReply({
             ephemeral: true
         })
-        await interaction.reply(`your title was ${title}`)
+        // await interaction.reply(`your title was ${title}`)
 
         // creating the poll selections
         const poll = new StringSelectMenuBuilder()
@@ -34,22 +34,25 @@ export const Poll = {
                     .setValue('option2'),
             ])
 
-        const row1 = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents()
-
-        // create a button to end the poll
-        const endPoll = new ButtonBuilder()
-            .setCustomId('end')
-            .setLabel('End Poll')
-            .setStyle(ButtonStyle.Danger)
-
-        const row2 = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents(endPoll)
+        const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+            .addComponents(poll)
 
         // send the message
-        await interaction.reply({
-            components: [row1, row2]
+        const response = await interaction.followUp({
+            components: [row]
         })
+
+        // handle the response 
+        const collector = response.createMessageComponentCollector({
+            componentType: ComponentType.StringSelect,
+            time: 3_600_000
+        })
+
+        collector.on('collect', async i => {
+            const selection = i.values[0]
+            await i.reply(`${i.user} has selected ${selection}`)
+        })
+
 
     }
 }
