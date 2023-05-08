@@ -1,4 +1,4 @@
-import { ActionRowBuilder, BaseSelectMenuBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js"
+import { ActionRowBuilder, bold, BaseSelectMenuBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder } from "discord.js"
 
 export const Poll = {
     cooldown: 5,
@@ -13,11 +13,12 @@ export const Poll = {
         ),
     execute: async (interaction: CommandInteraction) => {
         // immediate reply
-        const title: string = interaction.options.get('title')?.value as string ?? 'Untitled Poll'
         await interaction.deferReply({
             ephemeral: true
         })
         // await interaction.reply(`your title was ${title}`)
+        const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
+        // const title_row = new ActionRowBuilder<Text>
 
         // creating the poll selections
         const poll = new StringSelectMenuBuilder()
@@ -33,13 +34,13 @@ export const Poll = {
                     .setDescription('Description')
                     .setValue('option2'),
             ])
-
-        const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+        const select_row = new ActionRowBuilder<StringSelectMenuBuilder>()
             .addComponents(poll)
 
         // send the message
         const response = await interaction.followUp({
-            components: [row]
+            content: `${title}`,
+            components: [select_row]
         })
 
         // handle the response 
@@ -47,10 +48,9 @@ export const Poll = {
             componentType: ComponentType.StringSelect,
             time: 3_600_000
         })
-
         collector.on('collect', async i => {
             const selection = i.values[0]
-            await i.reply(`${i.user} has selected ${selection}`)
+            await interaction.editReply(`${i.user} has selected ${selection}`)
         })
 
 
