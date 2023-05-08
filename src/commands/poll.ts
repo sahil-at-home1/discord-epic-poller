@@ -47,9 +47,10 @@ const sendPollMessage = async (interaction: CommandInteraction, pollItems: PollI
         .setOptions(pollItems.toStringSelectMenuOptions())
 
     // create the embed to show the results
+    const pollCreator: string = interaction.user.username
     const results = new EmbedBuilder()
         .setColor(0x0099FF)
-        .setTitle(`${interaction.user.toString()} Poll: ${pollItems.title}`)
+        .setTitle(`${pollCreator}'s Poll: ${pollItems.title}`)
         .addFields(pollItems.toEmbedFields())
 
     // send the actual poll message
