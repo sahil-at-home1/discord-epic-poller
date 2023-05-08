@@ -1,4 +1,5 @@
-import { ActionRowBuilder, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction } from "discord.js"
+import { ActionRowBuilder, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction, ButtonBuilder, ButtonStyle } from "discord.js"
+import { create } from "domain"
 
 class PollItem {
     readonly title: string
@@ -91,9 +92,36 @@ export const Poll = {
                 .setMaxLength(100)
         ),
     execute: async (interaction: CommandInteraction) => {
-        // immediate reply bc it might take a while to set up poll
-        await interaction.deferReply({})
+        // poll creation message
+        const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
+        const addItem = new ButtonBuilder()
+            .setCustomId('add')
+            .setLabel('Add Poll Item')
+            .setStyle(ButtonStyle.Primary)
+        const removeItem = new ButtonBuilder()
+            .setCustomId('remove')
+            .setLabel('Remove Poll Item')
+            .setStyle(ButtonStyle.Danger)
+        const createPoll = new ButtonBuilder()
+            .setCustomId('create')
+            .setLabel('Create Poll')
+            .setStyle(ButtonStyle.Success)
+        const cancelPoll = new ButtonBuilder()
+            .setCustomId('cancel')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Secondary)
+        const itemModifyRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(removeItem, addItem)
+        const pollModifyRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(cancelPoll, createPoll)
+        const createResponse = await interaction.reply({
+            ephemeral: true,
+            content: `Create a new poll for \"${title}\"`,
+            components: [itemModifyRow, pollModifyRow]
+        })
 
+        // TODO: this is a static list, need another message to have the first user
+        // create the poll
         const pollItems: PollItemList = new PollItemList()
         pollItems.add(new PollItem('Option 1', '0'))
         pollItems.add(new PollItem('Option 2', '1'))
@@ -106,15 +134,14 @@ export const Poll = {
             .setOptions(pollItems.toStringSelectMenuOptions())
 
         // create the embed to show the results
-        const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         const results = new EmbedBuilder()
             .setColor(0x0099FF)
             .setTitle(`Poll: ${title}`)
             .setTimestamp()
             .addFields(pollItems.toEmbedFields())
 
-        // send the message
-        const response = await interaction.editReply({
+        // send the actual poll message
+        const response = await interaction.followUp({
             content: `${title}`,
             embeds: [results],
             components: [
