@@ -49,13 +49,11 @@ const sendPollMessage = async (interaction: CommandInteraction, pollItems: PollI
     // create the embed to show the results
     const results = new EmbedBuilder()
         .setColor(0x0099FF)
-        .setTitle(`Poll: ${pollItems.title}`)
-        .setTimestamp()
+        .setTitle(`${interaction.user.toString()} Poll: ${pollItems.title}`)
         .addFields(pollItems.toEmbedFields())
 
     // send the actual poll message
     return interaction.followUp({
-        content: `${pollItems.title}`,
         embeds: [results],
         components: [
             new ActionRowBuilder<StringSelectMenuBuilder>()
@@ -107,11 +105,54 @@ const handleAddItem = async (interaction: ButtonInteraction, pollItems: PollItem
         time: MODAL_TIMEOUT
     })
     const itemName = modalResponse.fields.getTextInputValue('itemNameInput')
-    pollItems.add(itemName)
     await modalResponse.deferUpdate()
-    await modalResponse.editReply({
-        content: `${pollItems.title}\r\n${pollItems.toString()}`,
+    const added: boolean = pollItems.add(itemName)
+    if (added === true) {
+        await modalResponse.editReply({
+            content: `${pollItems.title}\r\n${pollItems.toString()}`,
+        })
+    } else {
+        await modalResponse.followUp({
+            content: `Poll item already in list`,
+            ephemeral: true,
+        })
+    }
+}
+
+const handleRemoveItem = async (interaction: ButtonInteraction, pollItems: PollItemList) => {
+    const modal = new ModalBuilder()
+        .setCustomId("removeItemNameModal")
+        .setTitle('Remove Poll Item')
+        .addComponents(new ActionRowBuilder<TextInputBuilder>()
+            .addComponents(new TextInputBuilder()
+                .setCustomId('removeItemNameInput')
+                .setLabel('What item should be removed?')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(100)
+                .setValue('')
+                .setRequired(true)
+            )
+        )
+    await interaction.showModal(modal)
+    const filter = (m: ModalSubmitInteraction) =>
+        m.user.id === interaction.user.id && m.customId === 'removeItemNameModal'
+    const modalResponse = await interaction.awaitModalSubmit({
+        filter: filter,
+        time: MODAL_TIMEOUT
     })
+    const itemName = modalResponse.fields.getTextInputValue('removeItemNameInput')
+    await modalResponse.deferUpdate()
+    const deleted: boolean = pollItems.delete(itemName)
+    if (deleted === true) {
+        await modalResponse.editReply({
+            content: `${pollItems.title}\r\n${pollItems.toString()}`,
+        })
+    } else {
+        await modalResponse.followUp({
+            content: `Poll item not in list`,
+            ephemeral: true
+        })
+    }
 }
 
 const handleSetTitle = async (interaction: ButtonInteraction, pollItems: PollItemList) => {
@@ -148,12 +189,6 @@ export const Poll = {
     data: new SlashCommandBuilder()
         .setName('poll')
         .setDescription('Sets up a new poll'),
-    // .addStringOption((option) =>
-    //     option.setName('title')
-    //         .setDescription('Title of the poll')
-    //         .setRequired(true)
-    //         .setMaxLength(100)
-    // ),
     execute: async (interaction: CommandInteraction) => {
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         // ask user to create poll
@@ -169,10 +204,18 @@ export const Poll = {
             } else if (i.customId === 'add') {
                 handleAddItem(i, pollItems)
             } else if (i.customId === 'remove') {
+                handleRemoveItem(i, pollItems)
             } else if (i.customId === 'cancel') {
                 createResponse.delete()
             } else if (i.customId === 'create') {
                 createResponse.delete()
+                if (pollItems.length === 0) {
+                    await interaction.followUp({
+                        content: `No poll options were set`,
+                        ephemeral: true
+                    })
+                    return
+                }
                 // send out actual poll
                 const pollResponse = await sendPollMessage(interaction, pollItems)
                 // handle the interactions to the poll

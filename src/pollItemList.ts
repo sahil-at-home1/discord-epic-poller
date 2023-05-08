@@ -3,13 +3,11 @@ import { Poll } from './commands/poll'
 
 export class PollItem {
     readonly title: string
-    readonly value: string
     votes: number
     voters: string[]
 
     constructor(title: string, value: string) {
         this.title = title
-        this.value = value
         this.votes = 0
         this.voters = []
     }
@@ -51,23 +49,25 @@ export class PollItemList {
         item.voters.push(voterStr)
     }
 
-    add(name: string): void {
-        const item = new PollItem(name, String(this.length))
-        if (this.items.get(item.value) != null) {
-            console.log(`${item} already in poll items`)
-            return
+    add(title: string): boolean {
+        if (this.items.get(title) != null) {
+            console.log(`${title} already in poll items`)
+            return false
         }
-        this.items.set(item.value, item)
+        const item = new PollItem(title, String(this.length))
+        this.items.set(item.title, item)
         this.length += 1
+        return true
     }
 
-    delete(value: string): void {
-        if (this.items.get(value) == null) {
-            console.log(`${value} not in poll items`)
-            return
+    delete(title: string): boolean {
+        if (this.items.get(title) == null) {
+            console.log(`${title} not in poll items`)
+            return false
         }
-        this.items.delete(value)
+        this.items.delete(title)
         this.length -= 1
+        return true
     }
 
     toEmbedFields(): APIEmbedField[] {
@@ -90,7 +90,7 @@ export class PollItemList {
         this.items.forEach((i: PollItem) => {
             options.push(new StringSelectMenuOptionBuilder()
                 .setLabel(i.title)
-                .setValue(i.value)
+                .setValue(i.title)
             )
         })
         return options
