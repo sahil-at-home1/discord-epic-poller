@@ -1,4 +1,18 @@
-import { ActionRowBuilder, bold, BaseSelectMenuBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection } from "discord.js"
+import { ActionRowBuilder, bold, Embed, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection } from "discord.js"
+
+class PollItem {
+    title: string
+    value: string
+    votes: number
+    voters: string[]
+
+    constructor(title: string, value: string, votes: number, voters: string[]) {
+        this.title = title
+        this.value = value
+        this.votes = votes
+        this.voters = voters
+    }
+}
 
 export const Poll = {
     cooldown: 5,
@@ -20,21 +34,21 @@ export const Poll = {
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         // const title_row = new ActionRowBuilder<Text>
 
-        const options: any[] = [
-            { title: 'Option 1', value: 'options1' },
-            { title: 'Option 2', value: 'options2' },
-            { title: 'Option 3', value: 'options3' },
+        let pollItems: PollItem[] = [
+            { title: 'Option 1', value: '1', votes: 0, voters: [] },
+            { title: 'Option 2', value: '2', votes: 0, voters: [] },
+            { title: 'Option 3', value: '3', votes: 0, voters: [] },
         ]
 
         // creating the poll selections
         const poll = new StringSelectMenuBuilder()
             .setCustomId('poll')
             .setPlaceholder('Choose from the following...')
-        options.forEach((o: any) => {
+        pollItems.forEach((pi: PollItem) => {
             poll.addOptions(
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(o.title)
-                    .setValue(o.value)
+                    .setLabel(pi.title)
+                    .setValue(pi.value)
             )
         })
         const select_row = new ActionRowBuilder<StringSelectMenuBuilder>()
@@ -46,8 +60,11 @@ export const Poll = {
             .setColor(0x0099FF)
             .setTitle(`Poll: ${title}`)
             .setTimestamp()
-        options.forEach((o: any) => {
-            results.addFields({ name: o.title, value: o.value })
+        pollItems.forEach((pi: any) => {
+            results.addFields({
+                name: pi.title,
+                value: `${pi.votes} Vote(s) ${pi.voters.toString()}`
+            })
         })
 
         // send the message
@@ -62,16 +79,22 @@ export const Poll = {
             componentType: ComponentType.StringSelect,
             time: 3_600_000
         })
-        // create new results embed
-        const newEmbed = EmbedBuilder.from(response.embeds[0])
-        newEmbed.setFields()
+
         // send update
         collector.on('collect', async i => {
-            const selection = i.values[0]
-            await interaction.editReply(`${i.user} has selected ${selection}`)
-            // await interaction.editReply(`${i.user} has selected ${selection}`)
+            const selection: number = Number(i.values[0])
+            // create new results embed
+            pollItems[selection].votes += 1
+            pollItems[selection].voters.push(i.user.toString())
+            const newResults = EmbedBuilder.from(response.embeds[0])
+            newResults.setFields([])
+            pollItems.forEach((pi: PollItem) => {
+                newResults.addFields({
+                    name: pi.title,
+                    value: `${pi.votes} Vote(s) ${pi.voters.toString()}`
+                })
+            })
+            await interaction.editReply({ embeds: [newResults] })
         })
-
-
     }
 }

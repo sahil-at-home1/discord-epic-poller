@@ -17,7 +17,6 @@ export const onInteractionCreate = {
 
         // try to execute the command
         try {
-            console.log(`got interaction`)
             await command.execute(interaction)
         } catch (error) {
             console.error(`Error executing ${interaction.commandName}`)
