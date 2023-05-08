@@ -1,4 +1,4 @@
-import { ActionRowBuilder, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField } from "discord.js"
+import { ActionRowBuilder, bold, User, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Collection, APIEmbedField, Interaction } from "discord.js"
 
 class PollItem {
     readonly title: string
@@ -81,10 +81,8 @@ export const Poll = {
                 .setMaxLength(100)
         ),
     execute: async (interaction: CommandInteraction) => {
-        // immediate reply
-        await interaction.deferReply({
-            // ephemeral: true,
-        })
+        // immediate reply bc it might take a while to set up poll
+        await interaction.deferReply({})
 
         const pollItems: PollItemList = new PollItemList()
         pollItems.add(new PollItem('Option 1', '0'))
@@ -96,8 +94,6 @@ export const Poll = {
             .setCustomId('poll')
             .setPlaceholder('Choose from the following...')
             .setOptions(pollItems.toStringSelectMenuOptions())
-        const select_row = new ActionRowBuilder<StringSelectMenuBuilder>()
-            .addComponents(poll)
 
         // create the embed to show the results
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
@@ -108,28 +104,37 @@ export const Poll = {
             .addFields(pollItems.toEmbedFields())
 
         // send the message
-        const response = await interaction.followUp({
+        const response = await interaction.editReply({
             content: `${title}`,
             embeds: [results],
-            components: [select_row]
+            components: [
+                new ActionRowBuilder<StringSelectMenuBuilder>()
+                    .addComponents(poll)
+            ]
         })
 
         // handle the response 
-        const collector = response.createMessageComponentCollector({
+        const voteCollectorFilter = (i: StringSelectMenuInteraction) => {
+            i.deferUpdate()
+            return true
+        }
+        const voteCollector = response.createMessageComponentCollector({
+            filter: voteCollectorFilter,
             componentType: ComponentType.StringSelect,
-            time: 3_600_000
         })
 
         // send update
-        collector.on('collect', async i => {
-            const selection: string = i.values[0]
-            console.log(selection)
-            console.log(pollItems)
+        voteCollector.on('collect', async (i) => {
+            const itemValue: string = i.values[0]
+            // change state
+            pollItems.vote(itemValue, i.user)
             // create new results embed
-            pollItems.vote(selection, i.user)
             const newResults = EmbedBuilder.from(response.embeds[0])
             newResults.setFields(pollItems.toEmbedFields())
             await interaction.editReply({ embeds: [newResults] })
+        })
+        voteCollector.on('end', async () => {
+            await interaction.reply({ content: 'Poll Complete' })
         })
     }
 }
