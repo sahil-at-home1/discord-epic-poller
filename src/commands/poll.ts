@@ -75,7 +75,7 @@ const sendPollUpdateMessage = async (pollResponse: Message, pollItems: PollItemL
     voteCollector.on('collect', async (i) => {
         const itemValue: string = i.values[0]
         // change state
-        pollItems.vote(itemValue, i.user)
+        await pollItems.vote(itemValue, i.user)
         // create new results embed
         const newResults = EmbedBuilder.from(pollResponse.embeds[0])
         newResults.setFields(pollItems.toEmbedFields())

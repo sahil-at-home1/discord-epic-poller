@@ -1,10 +1,11 @@
 import { User, APIEmbedField, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js'
-import { Poll } from './commands/poll'
+import { Mutex } from 'async-mutex'
 
 export class PollItem {
     readonly title: string
     votes: number
     voters: string[]
+    mutex: Mutex = new Mutex()
 
     constructor(title: string, value: string) {
         this.title = title
@@ -12,41 +13,78 @@ export class PollItem {
         this.voters = []
     }
 
+    async addVote(voter: string): Promise<void> {
+        await this.mutex.runExclusive(() => {
+            if (this.voters.includes(voter)) {
+                console.error(`addVote: voter already voted for this item`)
+                return
+            }
+            this.votes += 1
+            this.voters.push(voter)
+            console.log(`addVote: ${this.toString()}`)
+        })
+    }
+
+    async removeVote(voter: string): Promise<void> {
+        await this.mutex.runExclusive(() => {
+            if (!this.voters.includes(voter)) {
+                console.error(`removeVote: voter did not vote for this item`)
+                return
+            }
+            this.votes -= 1
+            this.voters = this.voters.filter(v => v !== voter)
+            console.log(`removeVote: ${this.toString()}`)
+        })
+    }
+
+    toString(): string {
+        return `${this.title} ${this.votes} ${this.voters.toString()}`
+    }
 }
 
 export class PollItemList {
     title: string = ''
-    items: Map<string, PollItem> = new Map()
-    voters: Map<string, string> = new Map()
+    items: Map<string, PollItem> = new Map() // maps title to item
+    voters: Map<string, string> = new Map() // maps voter to title of voted item
     length: number = 0
+    mutex: Mutex = new Mutex()
 
     constructor(title: string) {
         this.title = title
     }
 
-    vote(itemValue: string, voter: User): void {
+    async vote(title: string, voter: User): Promise<void> {
         // check if item is valid
-        const item: PollItem | undefined = this.items.get(itemValue)
-        if (item == undefined) {
-            console.error(`${itemValue} not a valid pollItem value`)
+        const currItem: PollItem | undefined = this.items.get(title)
+        if (currItem == undefined) {
+            console.error(`${title} not a valid pollItem value`)
             return
         }
-        // check if voter already voted and remove their previous vote
         const voterStr: string = voter.toString()
-        const prevItemValue: string | undefined = this.voters.get(voterStr)
-        if (prevItemValue != undefined) {
-            const prevItem: PollItem | undefined = this.items.get(prevItemValue)
-            if (prevItem == undefined) {
-                console.error(`previous item ${prevItem} was not valid`)
-                return
+        // check if voter already voted and remove their previous vote atomically
+        await this.mutex.runExclusive(async () => {
+            // check if voter voted previously
+            const prevItemTitle: string | undefined = this.voters.get(voterStr)
+            if (prevItemTitle != undefined) {
+                // check if voter voted for this item previously
+                if (prevItemTitle == currItem.title) {
+                    console.error(`${voter.username} already voted for ${currItem.title}`)
+                    return
+                }
+                const prevItem: PollItem | undefined = this.items.get(prevItemTitle)
+                if (prevItem == undefined) {
+                    console.error(`vote: previous item ${prevItem} was not valid`)
+                    this.voters.delete(voterStr)
+                } else {
+                    console.log(`vote: ${voter.username} previously voted for ${prevItemTitle}`)
+                    await prevItem.removeVote(voterStr)
+                }
             }
-            prevItem.voters = item.voters.filter(v => v !== voterStr)
-            prevItem.votes -= 1
-        }
-        // update state of poll item
-        this.voters.set(voterStr, itemValue)
-        item.votes += 1
-        item.voters.push(voterStr)
+            console.log(`vote: ${voter.username} voted for ${currItem.title}\n`)
+            // update state of poll item
+            this.voters.set(voterStr, title)
+            await currItem.addVote(voterStr)
+        })
     }
 
     add(title: string): boolean {
