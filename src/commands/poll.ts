@@ -89,6 +89,7 @@ export const Poll = {
     cooldown: 5,
     data: CreatePollSlashCommand(),
     execute: async (interaction: CommandInteraction) => {
+        interaction.deferReply()
         // create poll
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         const pollItems: PollItemList = new PollItemList(title)
