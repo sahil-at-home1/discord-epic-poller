@@ -1,10 +1,13 @@
-import { ActionRowBuilder, Message, bold, italic, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, } from "discord.js"
+import { CommandInteractionOption, ActionRowBuilder, Message, bold, italic, CommandInteraction, ComponentType, InteractionResponse, SlashCommandBuilder, SlashCommandStringOption, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextInputBuilder, EmbedBuilder, Interaction, CommandInteractionOptionResolver, ChatInputCommandInteraction, } from "discord.js"
 import { PollItemList } from '../pollItemList.js'
 
 const MINUTE_MS: number = 60 * 1000
 const HOUR_MS: number = 60 * MINUTE_MS
 const DAY_MS: number = 24 * HOUR_MS
 const POLL_TIMEOUT: number = 1 * DAY_MS
+
+const DISCORD_SLASH_MAX_OPTIONS: number = 25
+const MAX_POLL_ITEM_OPTIONS: number = DISCORD_SLASH_MAX_OPTIONS - 1
 
 const sendPollMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<InteractionResponse> => {
     // creating the poll selections
@@ -52,7 +55,6 @@ const sendPollUpdateMessage = async (pollResponse: Message, pollItems: PollItemL
 }
 
 const CreatePollSlashCommand = (): SlashCommandBuilder => {
-    const DISCORD_SLASH_MAX_OPTIONS: number = 25
     const builder: SlashCommandBuilder = new SlashCommandBuilder()
     builder
         .setName('poll')
@@ -72,7 +74,7 @@ const CreatePollSlashCommand = (): SlashCommandBuilder => {
     // add optional poll items after the first one
     // subtract title from max options
     // start at second poll item
-    for (let i = 1; i < DISCORD_SLASH_MAX_OPTIONS - 1; i++) {
+    for (let i = 1; i < MAX_POLL_ITEM_OPTIONS; i++) {
         builder.addStringOption(option => (
             option.setName(`poll_item_${i + 1}`)
                 .setDescription(`poll item number ${i + 1}`)
@@ -90,6 +92,13 @@ export const Poll = {
         // create poll
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         const pollItems: PollItemList = new PollItemList(title)
+        for (let i = 1; i < MAX_POLL_ITEM_OPTIONS; i++) {
+            const poll_item_opt: CommandInteractionOption | null = interaction.options.get(`poll_item_${i + 1}`)
+            if (poll_item_opt == null) {
+                continue
+            }
+            pollItems.add(poll_item_opt.value as string)
+        }
         // send out actual poll
         const pollResponse: InteractionResponse = await sendPollMessage(interaction, pollItems)
         const pollMessage: Message = await pollResponse.fetch()
@@ -97,7 +106,7 @@ export const Poll = {
         await sendPollUpdateMessage(pollMessage, pollItems)
         setTimeout(() => {
             pollResponse.edit({
-                content: italic(`${POLL_TIMEOUT / 1000} seconds have passed. Voting is closed.`),
+                content: italic(`${POLL_TIMEOUT / HOUR_MS} hours have passed.\nVoting is closed.`),
                 components: [],
             })
         }, POLL_TIMEOUT)

@@ -226,7 +226,7 @@ export const PollPrompt = {
                 await sendPollUpdateMessage(pollResponse, pollItems)
                 setTimeout(() => {
                     pollResponse.edit({
-                        content: italic(`${POLL_TIMEOUT / 1000} seconds have passed. Voting is closed.`),
+                        content: italic(`${POLL_TIMEOUT / HOUR_MS} hours have passed. Voting is closed.`),
                         components: [],
                     })
                 }, POLL_TIMEOUT)
