@@ -1,9 +1,11 @@
 import { REST, Routes } from 'discord.js'
+import { PollPrompt } from './commands/pollPrompt.js'
 import { Poll } from './commands/poll.js'
 
 require('dotenv').config();
 
 const commands = [
+    PollPrompt.data.toJSON(),
     Poll.data.toJSON(),
 ]
 

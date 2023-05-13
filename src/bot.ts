@@ -2,7 +2,7 @@ import { Collection, GatewayIntentBits } from 'discord.js'
 import MyClient from './myClient.js'
 import { onReady } from './events/ready.js'
 import { onInteractionCreate } from './events/interactionCreate.js'
-import { Poll } from './commands/poll.js'
+import { Poll } from './commands/pollPrompt.js'
 
 require('dotenv').config();
 
