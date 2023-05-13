@@ -16,24 +16,24 @@ export class PollItem {
     async addVote(voter: string): Promise<void> {
         await this.mutex.runExclusive(() => {
             if (this.voters.includes(voter)) {
-                console.error(`addVote: voter already voted for this item`)
+                console.error(`(${this.title}) addVote: voter already voted for this item`)
                 return
             }
             this.votes += 1
             this.voters.push(voter)
-            console.log(`addVote: ${this.toString()}`)
+            console.log(`(${this.title}) addVote: ${this.toString()}`)
         })
     }
 
     async removeVote(voter: string): Promise<void> {
         await this.mutex.runExclusive(() => {
             if (!this.voters.includes(voter)) {
-                console.error(`removeVote: voter did not vote for this item`)
+                console.error(`(${this.title}) removeVote: voter did not vote for this item`)
                 return
             }
             this.votes -= 1
             this.voters = this.voters.filter(v => v !== voter)
-            console.log(`removeVote: ${this.toString()}`)
+            console.log(`(${this.title}) removeVote: ${this.toString()}`)
         })
     }
 
@@ -57,7 +57,7 @@ export class PollItemList {
         // check if item is valid
         const currItem: PollItem | undefined = this.items.get(title)
         if (currItem == undefined) {
-            console.error(`${title} not a valid pollItem value`)
+            console.error(`(${this.title}) vote: ${title} not a valid pollItem value`)
             return
         }
         const voterStr: string = voter.toString()
@@ -68,19 +68,19 @@ export class PollItemList {
             if (prevItemTitle != undefined) {
                 // check if voter voted for this item previously
                 if (prevItemTitle == currItem.title) {
-                    console.error(`${voter.username} already voted for ${currItem.title}`)
+                    console.log(`(${this.title}) vote: ${voter.username} already voted for ${currItem.title}`)
                     return
                 }
                 const prevItem: PollItem | undefined = this.items.get(prevItemTitle)
                 if (prevItem == undefined) {
-                    console.error(`vote: previous item ${prevItem} was not valid`)
+                    console.log(`(${this.title}) vote: previous item ${prevItem} was not valid`)
                     this.voters.delete(voterStr)
                 } else {
-                    console.log(`vote: ${voter.username} previously voted for ${prevItemTitle}`)
+                    console.log(`(${this.title}) vote: ${voter.username} previously voted for ${prevItemTitle}`)
                     await prevItem.removeVote(voterStr)
                 }
             }
-            console.log(`vote: ${voter.username} voted for ${currItem.title}\n`)
+            console.log(`(${this.title}) vote: ${voter.username} voted for ${currItem.title}\n`)
             // update state of poll item
             this.voters.set(voterStr, title)
             await currItem.addVote(voterStr)
@@ -89,7 +89,7 @@ export class PollItemList {
 
     add(title: string): boolean {
         if (this.items.get(title) != null) {
-            console.log(`${title} already in poll items`)
+            console.log(`(${this.title}) ${title} already in poll items`)
             return false
         }
         const item = new PollItem(title, String(this.length))
@@ -100,7 +100,7 @@ export class PollItemList {
 
     delete(title: string): boolean {
         if (this.items.get(title) == null) {
-            console.log(`${title} not in poll items`)
+            console.log(`(${this.title}) ${title} not in poll items`)
             return false
         }
         this.items.delete(title)

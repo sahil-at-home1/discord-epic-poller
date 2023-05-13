@@ -9,22 +9,21 @@ const POLL_TIMEOUT: number = 1 * DAY_MS
 const DISCORD_SLASH_MAX_OPTIONS: number = 25
 const MAX_POLL_ITEM_OPTIONS: number = DISCORD_SLASH_MAX_OPTIONS - 1
 
-const sendPollMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<InteractionResponse> => {
+const sendPollMessage = async (interaction: CommandInteraction, pollItems: PollItemList): Promise<Message> => {
     // creating the poll selections
     const poll = new StringSelectMenuBuilder()
         .setCustomId('poll')
         .setPlaceholder('Choose from the following...')
         .setOptions(pollItems.toStringSelectMenuOptions())
-
     // create the embed to show the results
+    const fields = pollItems.toEmbedFields()
     const pollCreator: string = interaction.user.username
     const results = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle(`${pollCreator}'s Poll: ${pollItems.title}`)
-        .addFields(pollItems.toEmbedFields())
-
+        .addFields(fields)
     // send the actual poll message
-    return interaction.reply({
+    return interaction.followUp({
         embeds: [results],
         components: [
             new ActionRowBuilder<StringSelectMenuBuilder>()
@@ -66,7 +65,7 @@ const CreatePollSlashCommand = (): SlashCommandBuilder => {
                 .setMaxLength(100)
         ))
         .addStringOption(option => (
-            option.setName(`poll_item_1`)
+            option.setName(`option_1`)
                 .setDescription(`poll item number 1`)
                 .setMaxLength(50)
                 .setRequired(true)
@@ -76,7 +75,7 @@ const CreatePollSlashCommand = (): SlashCommandBuilder => {
     // start at second poll item
     for (let i = 1; i < MAX_POLL_ITEM_OPTIONS; i++) {
         builder.addStringOption(option => (
-            option.setName(`poll_item_${i + 1}`)
+            option.setName(`option_${i + 1}`)
                 .setDescription(`poll item number ${i + 1}`)
                 .setMaxLength(50)
                 .setRequired(false)
@@ -89,22 +88,21 @@ export const Poll = {
     cooldown: 5,
     data: CreatePollSlashCommand(),
     execute: async (interaction: CommandInteraction) => {
-        interaction.deferReply()
+        await interaction.deferReply()
         // create poll
         const title: string = bold(interaction.options.get('title')?.value as string ?? 'Untitled Poll')
         const pollItems: PollItemList = new PollItemList(title)
-        for (let i = 1; i < MAX_POLL_ITEM_OPTIONS; i++) {
-            const poll_item_opt: CommandInteractionOption | null = interaction.options.get(`poll_item_${i + 1}`)
-            if (poll_item_opt == null) {
+        for (let i = 0; i < MAX_POLL_ITEM_OPTIONS; i++) {
+            const poll_item: string = interaction.options.get(`option_${i + 1}`)?.value as string ?? ''
+            if (poll_item === '') {
                 continue
             }
-            pollItems.add(poll_item_opt.value as string)
+            pollItems.add(poll_item)
         }
         // send out actual poll
-        const pollResponse: InteractionResponse = await sendPollMessage(interaction, pollItems)
-        const pollMessage: Message = await pollResponse.fetch()
+        const pollResponse: Message = await sendPollMessage(interaction, pollItems)
         // handle the interactions to the poll
-        await sendPollUpdateMessage(pollMessage, pollItems)
+        await sendPollUpdateMessage(pollResponse, pollItems)
         setTimeout(() => {
             pollResponse.edit({
                 content: italic(`${POLL_TIMEOUT / HOUR_MS} hours have passed.\nVoting is closed.`),
